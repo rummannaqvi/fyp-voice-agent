@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parametric Estimates | Agent Control</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { brand: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 900: '#1e3a8a' } }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-50 h-screen flex overflow-hidden text-slate-800">
+
+    <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col transition-all duration-300">
+        <div class="h-16 flex items-center px-6 border-b border-slate-800">
+            <i class="fa-solid fa-robot text-brand-500 text-xl mr-3"></i>
+            <span class="text-white font-semibold text-lg tracking-wide">Parametric AI</span>
+        </div>
+        <nav class="flex-1 py-6 px-3 space-y-1">
+            <div class="flex items-center px-3 py-2.5 bg-brand-600 text-white rounded-lg cursor-default">
+                <i class="fa-solid fa-clock-rotate-left w-6 text-center"></i>
+                <span class="ml-3 font-medium">Call History</span>
+            </div>
+        </nav>
+        <div class="p-4 border-t border-slate-800">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center text-white font-bold text-sm">A</div>
+                <div class="flex flex-col">
+                    <span class="text-sm font-medium text-white">Administrator</span>
+                    <span class="text-xs text-green-400">System Online</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+        
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+            <h1 class="text-xl font-semibold text-slate-800">Dashboard Overview</h1>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1.5 rounded-full text-sm font-medium border border-green-200">
+                    <span class="relative flex h-2.5 w-2.5">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                    </span>
+                    Twilio Bridge Active
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-8">
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xl"><i class="fa-solid fa-phone"></i></div>
+                    <div>
+                        <p class="text-sm text-slate-500 font-medium">Total Calls</p>
+                        <p class="text-2xl font-bold text-slate-800" id="kpi-total">-</p>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center text-xl"><i class="fa-solid fa-stopwatch"></i></div>
+                    <div>
+                        <p class="text-sm text-slate-500 font-medium">Avg Duration</p>
+                        <p class="text-2xl font-bold text-slate-800" id="kpi-duration">-</p>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-lg bg-green-50 text-green-600 flex items-center justify-center text-xl"><i class="fa-solid fa-check-circle"></i></div>
+                    <div>
+                        <p class="text-sm text-slate-500 font-medium">Success Rate</p>
+                        <p class="text-2xl font-bold text-slate-800" id="kpi-success">-</p>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-lg bg-red-50 text-red-600 flex items-center justify-center text-xl"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <div>
+                        <p class="text-sm text-slate-500 font-medium">Failed Calls</p>
+                        <p class="text-2xl font-bold text-slate-800" id="kpi-failed">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-6 h-[600px]">
+                
+                <div class="w-1/3 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col overflow-hidden">
+                    <div class="p-4 border-b border-slate-100 bg-slate-50/50">
+                        <h2 class="font-semibold text-slate-800">Call Log Directory</h2>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-2 space-y-1" id="call-list">
+                        </div>
+                </div>
+
+                <div class="w-2/3 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col overflow-hidden relative">
+                    <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 min-h-[72px]">
+                        <div class="flex flex-col">
+                            <h2 class="font-semibold text-slate-800 flex items-center gap-2" id="transcript-title">
+                                Select a Call Record
+                            </h2>
+                            <p class="text-xs text-slate-500" id="transcript-meta">Viewing conversation details</p>
+                        </div>
+                        
+                        <div id="audio-container" class="hidden flex items-center">
+                            <audio id="call-audio-player" controls class="h-8 shadow-sm rounded-full outline-none">
+                                <source src="" type="audio/mpeg">
+                                Your browser does not support the audio element.
+                            </audio>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto p-6 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-slate-50" id="transcript-box">
+                        <div class="h-full flex flex-col items-center justify-center text-slate-400">
+                            <i class="fa-solid fa-comment-dots text-4xl mb-3 text-slate-300"></i>
+                            <p>Select a call from the roster to view the transcript.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let allCalls = [];
+
+        async function loadCalls() {
+            try {
+                const response = await fetch('/api/calls');
+                allCalls = await response.json();
+                
+                const total = allCalls.length;
+                const completed = allCalls.filter(c => c.status === 'Completed').length;
+                const failed = total - completed;
+                const successRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+                
+                let totalDuration = 0;
+                allCalls.forEach(c => { totalDuration += (c.duration_seconds || 0); });
+                const avgDuration = total > 0 ? Math.round(totalDuration / total) : 0;
+                
+                document.getElementById('kpi-total').innerText = total;
+                document.getElementById('kpi-duration').innerText = avgDuration + 's';
+                document.getElementById('kpi-success').innerText = successRate + '%';
+                document.getElementById('kpi-failed').innerText = failed;
+
+                const callList = document.getElementById('call-list');
+                if(total === 0) {
+                    callList.innerHTML = '<p class="text-slate-400 text-sm text-center mt-10">No calls logged yet.</p>';
+                    return;
+                }
+
+                callList.innerHTML = allCalls.map(call => {
+                    const isSuccess = call.status === 'Completed';
+                    const timeString = new Date(call.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    const shortId = call.call_id.split('-')[1] + '-' + call.call_id.split('-')[2].substring(0,4);
+                    // Pass the recording_url (or null) to the transcript function
+                    const safeUrl = call.recording_url ? \`'\${call.recording_url}'\` : 'null';
+                    
+                    return `
+                    <div onclick="loadTranscript('${call.call_id}', '${timeString}', ${call.duration_seconds}, ${safeUrl})" 
+                         class="p-3 rounded-lg border border-transparent hover:border-slate-200 hover:bg-white hover:shadow-sm cursor-pointer transition flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-full ${isSuccess ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'} flex items-center justify-center shrink-0">
+                            <i class="fa-solid ${isSuccess ? 'fa-phone' : 'fa-phone-slash'}"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-center mb-0.5">
+                                <span class="font-semibold text-sm text-slate-800 truncate">${shortId}</span>
+                                <span class="text-xs font-medium text-slate-500">${timeString}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-slate-500 truncate"><i class="fa-regular fa-clock mr-1"></i>${call.duration_seconds} sec</span>
+                                <span class="text-[10px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded ${isSuccess ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}">${call.status}</span>
+                            </div>
+                        </div>
+                    </div>
+                `}).join('');
+            } catch (e) {
+                console.error("Failed to load calls", e);
+            }
+        }
+
+        async function loadTranscript(callId, timeString, duration, recordingUrl) {
+            document.getElementById('transcript-title').innerHTML = `<i class="fa-solid fa-file-waveform text-brand-500 mr-2"></i> Transcript: ${callId.split('-')[1]}`;
+            document.getElementById('transcript-meta').innerText = `Logged at ${timeString} • Duration: ${duration}s`;
+            
+            // Handle the audio player display
+            const audioContainer = document.getElementById('audio-container');
+            const audioPlayer = document.getElementById('call-audio-player');
+            
+            if (recordingUrl) {
+                // If Twilio gave us an MP3, show the player and load the URL
+                audioPlayer.src = recordingUrl;
+                audioContainer.classList.remove('hidden');
+            } else {
+                // If it was a failed call or a seeded test call without audio, hide the player
+                audioPlayer.pause();
+                audioPlayer.src = "";
+                audioContainer.classList.add('hidden');
+            }
+
+            const box = document.getElementById('transcript-box');
+            box.innerHTML = '<div class="h-full flex items-center justify-center"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-brand-500"></i></div>';
+
+            try {
+                const response = await fetch(`/api/calls/${callId}/transcript`);
+                const transcript = await response.json();
+
+                if(transcript.length === 0) {
+                    box.innerHTML = '<div class="h-full flex items-center justify-center text-slate-400">No transcript data found.</div>';
+                    return;
+                }
+
+                box.innerHTML = '<div class="space-y-6 pb-4">' + transcript.map(t => {
+                    const isAgent = t.speaker === 'Agent';
+                    const time = new Date(t.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+                    
+                    if (isAgent) {
+                        return `
+                        <div class="flex items-end gap-2 max-w-[85%]">
+                            <div class="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center shrink-0 text-white shadow-sm">
+                                <i class="fa-solid fa-robot text-xs"></i>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <span class="text-[10px] text-slate-400 font-medium ml-1">AI Agent • ${time}</span>
+                                <div class="bg-white border border-slate-200 text-slate-800 px-4 py-3 rounded-2xl rounded-bl-none shadow-sm text-sm leading-relaxed">
+                                    ${t.message}
+                                </div>
+                            </div>
+                        </div>`;
+                    } else {
+                        return `
+                        <div class="flex items-end gap-2 max-w-[85%] ml-auto justify-end">
+                            <div class="flex flex-col gap-1 items-end">
+                                <span class="text-[10px] text-slate-400 font-medium mr-1">Customer • ${time}</span>
+                                <div class="bg-brand-600 text-white px-4 py-3 rounded-2xl rounded-br-none shadow-sm text-sm leading-relaxed">
+                                    ${t.message}
+                                </div>
+                            </div>
+                            <div class="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center shrink-0 text-slate-600 shadow-sm">
+                                <i class="fa-solid fa-user text-xs"></i>
+                            </div>
+                        </div>`;
+                    }
+                }).join('') + '</div>';
+                
+                box.scrollTop = box.scrollHeight;
+            } catch (e) {
+                box.innerHTML = '<div class="text-red-500 text-center mt-10">Error loading transcript.</div>';
+            }
+        }
+
+        loadCalls();
+    </script>
+</body>
+</html>
