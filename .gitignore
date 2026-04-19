@@ -1,2 +1,5 @@
-venv/
 .env
+gcp-key.json
+chroma_db/
+__pycache__/
+*.pyc

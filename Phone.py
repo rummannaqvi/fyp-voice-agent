@@ -19,7 +19,7 @@ def initiate_outbound_call(customer_number: str):
             to=customer_number, 
             from_=os.getenv("TWILIO_PHONE_NUMBER"), 
             url=f"{NGROK_URL}/incoming-call", 
-            method="POST"
+            method="POST",
 
             record = True,  # Enable call recording
             recording_status_callback=f"{NGROK_URL}/recording-webhook",  # Callback for when recording is complete

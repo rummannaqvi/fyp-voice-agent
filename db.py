@@ -5,12 +5,12 @@ from datetime import datetime
 import random
 import string
 from dotenv import load_dotenv
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 load_dotenv()
 
-# Get the database URL from your .env file
-# Format should be: postgresql://user:password@localhost:5432/dbname
 DB_URL = os.getenv("DATABASE_URL")
+
 
 def get_db_connection():
     """Creates a synchronous connection to PostgreSQL."""
@@ -21,37 +21,42 @@ def get_db_connection():
         print(f"Database connection failed: {e}")
         return None
 
+
 def init_db():
-    """Creates the necessary tables according to SRS specifications."""
+    """Creates the necessary tables."""
     conn = get_db_connection()
     if not conn:
         return
-        
+
     try:
         with conn.cursor() as cur:
             # Table 1: Call Metadata
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS call_logs (
-                    call_id VARCHAR(50) PRIMARY KEY,
-                    stream_sid VARCHAR(100),
-                    start_time TIMESTAMP,
-                    end_time TIMESTAMP,
+                    call_id        VARCHAR(50)  PRIMARY KEY,
+                    stream_sid     VARCHAR(100),
+                    call_sid       VARCHAR(100),
+                    start_time     TIMESTAMP,
+                    end_time       TIMESTAMP,
                     duration_seconds INTEGER,
-                    status VARCHAR(20)
+                    status         VARCHAR(20),
+                    recording_url  VARCHAR(255)
                 )
             """)
-            
+
             # Table 2: Transcripts
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS transcripts (
-                    id SERIAL PRIMARY KEY,
-                    call_id VARCHAR(50) REFERENCES call_logs(call_id),
-                    speaker VARCHAR(20),
-                    message TEXT,
+                    id        SERIAL       PRIMARY KEY,
+                    call_id   VARCHAR(50)  REFERENCES call_logs(call_id),
+                    speaker   VARCHAR(20),
+                    message   TEXT,
                     timestamp TIMESTAMP
                 )
             """)
-            cur.execute("ALTER TABLE call_logs ADD COLUMN IF NOT EXISTS call_sid VARCHAR(100);")
+
+            # Add columns if upgrading from older schema
+            cur.execute("ALTER TABLE call_logs ADD COLUMN IF NOT EXISTS call_sid      VARCHAR(100);")
             cur.execute("ALTER TABLE call_logs ADD COLUMN IF NOT EXISTS recording_url VARCHAR(255);")
 
         conn.commit()
@@ -61,65 +66,79 @@ def init_db():
     finally:
         conn.close()
 
+
 def generate_call_id() -> str:
-    """Generates the specific Call ID format required by BR-12 in the SRS."""
-    date_str = datetime.now().strftime("%Y%md-%H%M%S")
-    random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+    """Generates a unique Call ID."""
+    date_str    = datetime.now().strftime("%Y%m%d-%H%M%S")
+    random_str  = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
     return f"CALL-{date_str}-{random_str}"
 
-# --- UPDATE THIS FUNCTION ---
+
 def save_call_data(stream_sid: str, call_sid: str, start_time: datetime, conversation_history: list):
-    """Saves the metadata and the full transcript to Postgres when the call ends."""
+    """
+    Saves call metadata and the full transcript to Postgres when the call ends.
+    Works with LangChain message objects (AIMessage, HumanMessage, SystemMessage).
+    """
     conn = get_db_connection()
     if not conn:
         return
-        
+
     end_time = datetime.now()
     duration = int((end_time - start_time).total_seconds())
-    call_id = generate_call_id()
-    
+    call_id  = generate_call_id()
+
     try:
         with conn.cursor() as cur:
-            # 1. Save Call Metadata (Now includes call_sid)
+            # 1. Save Call Metadata
             cur.execute("""
-                INSERT INTO call_logs (call_id, stream_sid, call_sid, start_time, end_time, duration_seconds, status)
+                INSERT INTO call_logs
+                    (call_id, stream_sid, call_sid, start_time, end_time, duration_seconds, status)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (call_id, stream_sid, call_sid, start_time, end_time, duration, "Completed"))
-            
-            
+
             # 2. Save the Transcript
-            # We skip the very first message because it is the LLM System Prompt
+            # Skip the first message — it's always the SystemMessage (system prompt)
             for msg in conversation_history[1:]:
-                speaker = "Agent" if msg["role"] == "assistant" else "Customer"
-                text = msg["content"]
-                
-                # If it's a RAG prompt, clean it up so we only log what the customer actually said
-                if speaker == "Customer" and "Customer says:" in text:
-                    text = text.split("Customer says:")[-1].strip()
-                    
+
+                # Skip any stray system messages
+                if isinstance(msg, SystemMessage):
+                    continue
+
+                if isinstance(msg, AIMessage):
+                    speaker = "Agent"
+                    text    = msg.content
+
+                elif isinstance(msg, HumanMessage):
+                    speaker = "Customer"
+                    text    = msg.content
+                    # Strip the RAG wrapper so we only log the raw customer words
+                    if "Customer says:" in text:
+                        text = text.split("Customer says:")[-1].strip()
+
+                else:
+                    # Unknown message type — skip silently
+                    continue
+
                 cur.execute("""
                     INSERT INTO transcripts (call_id, speaker, message, timestamp)
                     VALUES (%s, %s, %s, %s)
                 """, (call_id, speaker, text, datetime.now()))
-                
+
         conn.commit()
         print(f"💾 Call {call_id} successfully saved to database!")
+
     except Exception as e:
         print(f"Error saving call data: {e}")
     finally:
         conn.close()
 
-# Initialize tables when the module is imported
-init_db()
-
-# ... keep your existing db.py code ...
 
 def get_all_calls():
     """Fetches all call logs from the database, newest first."""
     conn = get_db_connection()
     if not conn:
         return []
-        
+
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT * FROM call_logs ORDER BY start_time DESC")
@@ -130,18 +149,19 @@ def get_all_calls():
     finally:
         conn.close()
 
+
 def get_transcript(call_id: str):
     """Fetches the conversation transcript for a specific call."""
     conn = get_db_connection()
     if not conn:
         return []
-        
+
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT speaker, message, timestamp 
-                FROM transcripts 
-                WHERE call_id = %s 
+                SELECT speaker, message, timestamp
+                FROM transcripts
+                WHERE call_id = %s
                 ORDER BY timestamp ASC
             """, (call_id,))
             return cur.fetchall()
@@ -151,18 +171,26 @@ def get_transcript(call_id: str):
     finally:
         conn.close()
 
+
 def update_recording_url(call_sid: str, recording_url: str):
     """Saves the Twilio MP3 URL to the database once the recording finishes."""
     conn = get_db_connection()
     if not conn:
         return
-        
+
     try:
         with conn.cursor() as cur:
-            cur.execute("UPDATE call_logs SET recording_url = %s WHERE call_sid = %s", (recording_url, call_sid))
+            cur.execute(
+                "UPDATE call_logs SET recording_url = %s WHERE call_sid = %s",
+                (recording_url, call_sid)
+            )
         conn.commit()
         print(f"🎵 Recording MP3 saved to database for call {call_sid}!")
     except Exception as e:
         print(f"Error updating recording URL: {e}")
     finally:
         conn.close()
+
+
+# Initialize tables when this module is first imported
+init_db()

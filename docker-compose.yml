@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: voice_agent_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: voiceagent
+      POSTGRES_PASSWORD: voiceagent
+      POSTGRES_DB: voiceagent
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voiceagent"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: voice_agent_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist ChromaDB between restarts so you don't re-scrape every time
+      - chroma_data:/app/chroma_db
+      # Mount GCP service account key (see Step 6)
+      - ./gcp-key.json:/app/gcp-key.json:ro
+    environment:
+      # Database
+      DATABASE_URL: postgresql://voiceagent:voiceagent@db:5432/voiceagent
+
+      # Twilio
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
+
+      # Deepgram (ASR)
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY}
+
+      # ElevenLabs (TTS)
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY}
+      ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID}
+
+      # Vertex AI / GCP
+      VERTEX_PROJECT_ID: ${VERTEX_PROJECT_ID}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/gcp-key.json
+      NGROK_URL: ${NGROK_URL}
+
+volumes:
+  postgres_data:
+  chroma_data:

@@ -3,268 +3,519 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parametric Estimates | Agent Control</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Parametric AI — Command Center</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'] },
-                    colors: { brand: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 900: '#1e3a8a' } }
-                }
-            }
-        }
-    </script>
     <style>
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        :root {
+            --bg:          #080c14;
+            --bg2:         #0d1321;
+            --bg3:         #111827;
+            --border:      #1e2d45;
+            --border2:     #243348;
+            --text:        #e2eaf7;
+            --muted:       #5a7499;
+            --muted2:      #3d5575;
+            --accent:      #3b82f6;
+            --accent2:     #60a5fa;
+            --accent-glow: rgba(59,130,246,0.18);
+            --green:       #10b981;
+            --red:         #f43f5e;
+            --gold:        #f59e0b;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Instrument Sans',sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; overflow:hidden; }
+        body::before { content:''; position:fixed; inset:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E"); pointer-events:none; z-index:0; }
+        ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:transparent; } ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:4px; }
+
+        /* SIDEBAR */
+        aside { width:240px; background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; position:relative; z-index:10; flex-shrink:0; }
+        .logo-wrap { padding:24px 20px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; }
+        .logo-icon { width:36px; height:36px; background:linear-gradient(135deg,var(--accent),#1d4ed8); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 0 20px var(--accent-glow); }
+        .logo-text { font-family:'Syne',sans-serif; font-weight:800; font-size:15px; letter-spacing:-0.3px; }
+        .logo-sub  { font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); margin-top:1px; letter-spacing:0.5px; }
+        nav { flex:1; padding:16px 12px; }
+        .nav-label { font-family:'DM Mono',monospace; font-size:9px; letter-spacing:1.5px; color:var(--muted2); text-transform:uppercase; padding:0 8px; margin-bottom:8px; margin-top:8px; }
+        .nav-item { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px; color:var(--muted); font-size:13.5px; font-weight:500; margin-bottom:2px; }
+        .nav-item.active { background:linear-gradient(90deg,rgba(59,130,246,0.15),rgba(59,130,246,0.05)); color:var(--accent2); border-left:2px solid var(--accent); padding-left:10px; }
+        .nav-item i { width:16px; text-align:center; }
+        .sidebar-footer { padding:16px; border-top:1px solid var(--border); }
+        .agent-card { background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:12px; display:flex; align-items:center; gap:10px; }
+        .agent-avatar { width:32px; height:32px; background:linear-gradient(135deg,var(--accent),#1d4ed8); border-radius:8px; display:flex; align-items:center; justify-content:center; font-family:'Syne',sans-serif; font-weight:800; font-size:13px; }
+        .agent-name { font-size:13px; font-weight:600; }
+        .agent-status { font-family:'DM Mono',monospace; font-size:10px; color:var(--green); display:flex; align-items:center; gap:5px; }
+        .pulse-dot { width:6px; height:6px; border-radius:50%; background:var(--green); position:relative; }
+        .pulse-dot::after { content:''; position:absolute; inset:-2px; border-radius:50%; background:var(--green); opacity:0.4; animation:pulse-ring 1.5s ease-out infinite; }
+        @keyframes pulse-ring { 0%{transform:scale(1);opacity:0.4;} 100%{transform:scale(2.5);opacity:0;} }
+
+        /* MAIN */
+        main { flex:1; display:flex; flex-direction:column; overflow:hidden; position:relative; z-index:5; }
+        .topbar { height:64px; background:rgba(13,19,33,0.8); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 28px; flex-shrink:0; }
+        .topbar-title { font-family:'Syne',sans-serif; font-weight:700; font-size:17px; letter-spacing:-0.3px; }
+        .topbar-right { display:flex; align-items:center; gap:12px; }
+        .call-form { display:flex; align-items:center; gap:8px; background:var(--bg3); border:1px solid var(--border2); border-radius:10px; padding:6px 8px 6px 14px; }
+        .call-form input { background:transparent; border:none; outline:none; color:var(--text); font-family:'DM Mono',monospace; font-size:13px; width:160px; }
+        .call-form input::placeholder { color:var(--muted2); }
+        .btn-call { background:linear-gradient(135deg,var(--accent),#1d4ed8); border:none; border-radius:7px; color:#fff; font-family:'Instrument Sans',sans-serif; font-weight:600; font-size:12.5px; padding:7px 14px; cursor:pointer; display:flex; align-items:center; gap:7px; transition:all 0.2s; white-space:nowrap; box-shadow:0 4px 14px rgba(59,130,246,0.3); }
+        .btn-call:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(59,130,246,0.4); }
+        .btn-call:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+        .btn-call.dialing { background:linear-gradient(135deg,var(--gold),#d97706); box-shadow:0 4px 14px rgba(245,158,11,0.3); }
+        .btn-call.success { background:linear-gradient(135deg,var(--green),#059669); box-shadow:0 4px 14px rgba(16,185,129,0.3); }
+        .btn-call.error   { background:linear-gradient(135deg,var(--red),#e11d48);   box-shadow:0 4px 14px rgba(244,63,94,0.3); }
+        .status-badge { display:flex; align-items:center; gap:7px; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25); color:var(--green); padding:6px 13px; border-radius:20px; font-size:12px; font-weight:500; }
+
+        /* CONTENT */
+        .content { flex:1; overflow-y:auto; padding:24px 28px; }
+
+        /* KPIs */
+        .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+        .kpi-card { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:20px; display:flex; align-items:center; gap:16px; position:relative; overflow:hidden; animation:fadeUp 0.4s ease both; transition:border-color 0.2s,transform 0.2s; }
+        .kpi-card:hover { border-color:var(--border2); transform:translateY(-2px); }
+        .kpi-card::after { content:''; position:absolute; top:0; left:0; right:0; height:2px; border-radius:14px 14px 0 0; }
+        .kpi-card.blue::after   { background:linear-gradient(90deg,var(--accent),transparent); }
+        .kpi-card.purple::after { background:linear-gradient(90deg,#a855f7,transparent); }
+        .kpi-card.green::after  { background:linear-gradient(90deg,var(--green),transparent); }
+        .kpi-card.red::after    { background:linear-gradient(90deg,var(--red),transparent); }
+        .kpi-icon { width:46px; height:46px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+        .kpi-card.blue   .kpi-icon { background:rgba(59,130,246,0.12);  color:var(--accent2); }
+        .kpi-card.purple .kpi-icon { background:rgba(168,85,247,0.12);  color:#c084fc; }
+        .kpi-card.green  .kpi-icon { background:rgba(16,185,129,0.12);  color:#34d399; }
+        .kpi-card.red    .kpi-icon { background:rgba(244,63,94,0.12);   color:#fb7185; }
+        .kpi-label { font-family:'DM Mono',monospace; font-size:10.5px; color:var(--muted); letter-spacing:0.5px; text-transform:uppercase; margin-bottom:4px; }
+        .kpi-value { font-family:'Syne',sans-serif; font-size:26px; font-weight:800; letter-spacing:-1px; line-height:1; }
+
+        /* PANELS */
+        .panel-row { display:flex; gap:18px; height:calc(100vh - 64px - 24px - 110px - 24px - 24px); min-height:400px; }
+        .panel { background:var(--bg2); border:1px solid var(--border); border-radius:14px; display:flex; flex-direction:column; overflow:hidden; }
+
+        /* Call list */
+        .call-list-panel { width:320px; flex-shrink:0; }
+        .panel-head { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+        .panel-head-title { font-family:'Syne',sans-serif; font-weight:700; font-size:14px; }
+        .panel-badge { font-family:'DM Mono',monospace; font-size:10px; background:var(--bg3); border:1px solid var(--border2); border-radius:6px; padding:3px 8px; color:var(--muted); }
+        .call-list-body { flex:1; overflow-y:auto; padding:10px; }
+        .call-item { display:flex; align-items:center; gap:12px; padding:12px; border-radius:10px; border:1px solid transparent; cursor:pointer; transition:all 0.15s; margin-bottom:4px; }
+        .call-item:hover { background:var(--bg3); border-color:var(--border); }
+        .call-item.active { background:rgba(59,130,246,0.08); border-color:rgba(59,130,246,0.3); }
+        .call-avatar { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+        .call-avatar.ok  { background:rgba(16,185,129,0.12); color:#34d399; }
+        .call-avatar.bad { background:rgba(244,63,94,0.12);  color:#fb7185; }
+        .call-info { flex:1; min-width:0; }
+        .call-id   { font-family:'DM Mono',monospace; font-size:12px; font-weight:500; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .call-meta { display:flex; align-items:center; gap:8px; margin-top:3px; }
+        .call-time { font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); }
+        .call-dur  { font-family:'DM Mono',monospace; font-size:10px; color:var(--muted2); }
+        .status-pill { font-family:'DM Mono',monospace; font-size:9px; font-weight:500; text-transform:uppercase; letter-spacing:0.5px; padding:2px 7px; border-radius:4px; }
+        .status-pill.ok  { background:rgba(16,185,129,0.12); color:#34d399; }
+        .status-pill.bad { background:rgba(244,63,94,0.12);  color:#fb7185; }
+
+        /* Transcript panel */
+        .transcript-panel { flex:1; }
+        .transcript-head { padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; gap:12px; min-height:72px; flex-wrap:wrap; }
+        .transcript-head-info { flex:1; min-width:0; }
+        .transcript-head-title { font-family:'Syne',sans-serif; font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px; }
+        .transcript-head-meta  { font-family:'DM Mono',monospace; font-size:10.5px; color:var(--muted); margin-top:3px; }
+
+        /* RECORDING PLAYER */
+        .recording-wrap { display:none; align-items:center; gap:8px; flex-shrink:0; }
+        .recording-wrap.visible { display:flex; }
+        .audio-player-custom { display:flex; align-items:center; gap:8px; background:var(--bg3); border:1px solid var(--border2); border-radius:10px; padding:6px 12px; }
+        .btn-play { width:32px; height:32px; background:linear-gradient(135deg,var(--accent),#1d4ed8); border:none; border-radius:8px; color:#fff; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(59,130,246,0.3); transition:all 0.15s; flex-shrink:0; }
+        .btn-play:hover { transform:scale(1.05); }
+        .audio-progress-wrap { display:flex; flex-direction:column; gap:3px; min-width:120px; }
+        .audio-label { font-family:'DM Mono',monospace; font-size:9px; color:var(--muted); letter-spacing:0.5px; }
+        .audio-progress { -webkit-appearance:none; appearance:none; width:100%; height:3px; border-radius:2px; background:var(--border2); outline:none; cursor:pointer; }
+        .audio-progress::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:10px; height:10px; border-radius:50%; background:var(--accent2); cursor:pointer; }
+        .audio-time { font-family:'DM Mono',monospace; font-size:9px; color:var(--muted); white-space:nowrap; }
+        .btn-download { display:flex; align-items:center; gap:6px; background:var(--bg3); border:1px solid var(--border2); color:var(--muted); border-radius:8px; padding:6px 12px; font-size:11px; font-family:'Instrument Sans',sans-serif; font-weight:500; cursor:pointer; text-decoration:none; transition:all 0.15s; white-space:nowrap; flex-shrink:0; }
+        .btn-download:hover { color:var(--text); border-color:var(--accent); background:rgba(59,130,246,0.08); }
+        #real-audio { display:none; }
+
+        /* Transcript body */
+        .transcript-body { flex:1; overflow-y:auto; padding:24px; background:radial-gradient(ellipse at 20% 80%,rgba(59,130,246,0.04) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(16,185,129,0.03) 0%,transparent 60%),var(--bg); }
+        .transcript-empty { height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--muted); gap:14px; }
+        .transcript-empty i { font-size:36px; color:var(--muted2); }
+        .transcript-empty p { font-size:13.5px; }
+
+        /* Bubbles */
+        .bubble-row { display:flex; align-items:flex-end; gap:10px; margin-bottom:20px; animation:fadeUp 0.3s ease both; }
+        .bubble-row.agent    { justify-content:flex-start; }
+        .bubble-row.customer { justify-content:flex-end; }
+        .bubble-avatar { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0; }
+        .bubble-row.agent    .bubble-avatar { background:linear-gradient(135deg,var(--accent),#1d4ed8); color:#fff; }
+        .bubble-row.customer .bubble-avatar { background:var(--bg3); border:1px solid var(--border2); color:var(--muted); }
+        .bubble-content { max-width:75%; }
+        .bubble-label { font-family:'DM Mono',monospace; font-size:9.5px; color:var(--muted); margin-bottom:5px; }
+        .bubble-row.customer .bubble-label { text-align:right; }
+        .bubble { padding:12px 16px; border-radius:14px; font-size:13.5px; line-height:1.6; }
+        .bubble-row.agent    .bubble { background:var(--bg3); border:1px solid var(--border2); border-bottom-left-radius:4px; color:var(--text); }
+        .bubble-row.customer .bubble { background:linear-gradient(135deg,rgba(59,130,246,0.2),rgba(29,78,216,0.25)); border:1px solid rgba(59,130,246,0.3); border-bottom-right-radius:4px; color:var(--text); }
+
+        /* Misc */
+        @keyframes fadeUp { from{opacity:0;transform:translateY(14px);} to{opacity:1;transform:translateY(0);} }
+        .kpi-card:nth-child(1){animation-delay:0.05s;} .kpi-card:nth-child(2){animation-delay:0.10s;} .kpi-card:nth-child(3){animation-delay:0.15s;} .kpi-card:nth-child(4){animation-delay:0.20s;}
+        .empty-calls { text-align:center; padding:40px 20px; color:var(--muted); font-size:13px; }
+        .empty-calls i { font-size:28px; color:var(--muted2); display:block; margin-bottom:10px; }
+        .btn-refresh { background:var(--bg3); border:1px solid var(--border2); color:var(--muted); border-radius:7px; padding:5px 10px; font-size:12px; cursor:pointer; transition:all 0.15s; }
+        .btn-refresh:hover { color:var(--text); border-color:var(--muted2); }
+        .btn-refresh.spinning i { animation:spin 0.7s linear infinite; }
+        @keyframes spin { to{transform:rotate(360deg);} }
+        #toast { position:fixed; bottom:28px; right:28px; background:var(--bg3); border:1px solid var(--border2); border-radius:10px; padding:12px 18px; font-size:13px; display:flex; align-items:center; gap:10px; box-shadow:0 8px 32px rgba(0,0,0,0.4); z-index:9999; transform:translateY(80px); opacity:0; transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1); max-width:320px; }
+        #toast.show { transform:translateY(0); opacity:1; }
+        #toast.success { border-color:rgba(16,185,129,0.4); color:var(--green); }
+        #toast.error   { border-color:rgba(244,63,94,0.4);  color:var(--red); }
+        #toast.info    { border-color:rgba(59,130,246,0.4); color:var(--accent2); }
     </style>
 </head>
-<body class="bg-slate-50 h-screen flex overflow-hidden text-slate-800">
+<body>
 
-    <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col transition-all duration-300">
-        <div class="h-16 flex items-center px-6 border-b border-slate-800">
-            <i class="fa-solid fa-robot text-brand-500 text-xl mr-3"></i>
-            <span class="text-white font-semibold text-lg tracking-wide">Parametric AI</span>
+<aside>
+    <div class="logo-wrap">
+        <div class="logo-icon"><i class="fa-solid fa-robot"></i></div>
+        <div>
+            <div class="logo-text">Parametric AI</div>
+            <div class="logo-sub">COMMAND CENTER</div>
         </div>
-        <nav class="flex-1 py-6 px-3 space-y-1">
-            <div class="flex items-center px-3 py-2.5 bg-brand-600 text-white rounded-lg cursor-default">
-                <i class="fa-solid fa-clock-rotate-left w-6 text-center"></i>
-                <span class="ml-3 font-medium">Call History</span>
-            </div>
-        </nav>
-        <div class="p-4 border-t border-slate-800">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center text-white font-bold text-sm">A</div>
-                <div class="flex flex-col">
-                    <span class="text-sm font-medium text-white">Administrator</span>
-                    <span class="text-xs text-green-400">System Online</span>
-                </div>
-            </div>
-        </div>
-    </aside>
-
-    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
-        
-        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
-            <h1 class="text-xl font-semibold text-slate-800">Dashboard Overview</h1>
-            <div class="flex items-center gap-4">
-                <div class="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1.5 rounded-full text-sm font-medium border border-green-200">
-                    <span class="relative flex h-2.5 w-2.5">
-                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-                    </span>
-                    Twilio Bridge Active
-                </div>
-            </div>
-        </header>
-
-        <div class="flex-1 overflow-y-auto p-8">
-            
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xl"><i class="fa-solid fa-phone"></i></div>
-                    <div>
-                        <p class="text-sm text-slate-500 font-medium">Total Calls</p>
-                        <p class="text-2xl font-bold text-slate-800" id="kpi-total">-</p>
-                    </div>
-                </div>
-                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center text-xl"><i class="fa-solid fa-stopwatch"></i></div>
-                    <div>
-                        <p class="text-sm text-slate-500 font-medium">Avg Duration</p>
-                        <p class="text-2xl font-bold text-slate-800" id="kpi-duration">-</p>
-                    </div>
-                </div>
-                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-lg bg-green-50 text-green-600 flex items-center justify-center text-xl"><i class="fa-solid fa-check-circle"></i></div>
-                    <div>
-                        <p class="text-sm text-slate-500 font-medium">Success Rate</p>
-                        <p class="text-2xl font-bold text-slate-800" id="kpi-success">-</p>
-                    </div>
-                </div>
-                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-lg bg-red-50 text-red-600 flex items-center justify-center text-xl"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                    <div>
-                        <p class="text-sm text-slate-500 font-medium">Failed Calls</p>
-                        <p class="text-2xl font-bold text-slate-800" id="kpi-failed">-</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex gap-6 h-[600px]">
-                
-                <div class="w-1/3 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col overflow-hidden">
-                    <div class="p-4 border-b border-slate-100 bg-slate-50/50">
-                        <h2 class="font-semibold text-slate-800">Call Log Directory</h2>
-                    </div>
-                    <div class="flex-1 overflow-y-auto p-2 space-y-1" id="call-list">
-                        </div>
-                </div>
-
-                <div class="w-2/3 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col overflow-hidden relative">
-                    <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 min-h-[72px]">
-                        <div class="flex flex-col">
-                            <h2 class="font-semibold text-slate-800 flex items-center gap-2" id="transcript-title">
-                                Select a Call Record
-                            </h2>
-                            <p class="text-xs text-slate-500" id="transcript-meta">Viewing conversation details</p>
-                        </div>
-                        
-                        <div id="audio-container" class="hidden flex items-center">
-                            <audio id="call-audio-player" controls class="h-8 shadow-sm rounded-full outline-none">
-                                <source src="" type="audio/mpeg">
-                                Your browser does not support the audio element.
-                            </audio>
-                        </div>
-                    </div>
-
-                    <div class="flex-1 overflow-y-auto p-6 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-slate-50" id="transcript-box">
-                        <div class="h-full flex flex-col items-center justify-center text-slate-400">
-                            <i class="fa-solid fa-comment-dots text-4xl mb-3 text-slate-300"></i>
-                            <p>Select a call from the roster to view the transcript.</p>
-                        </div>
-                    </div>
-                </div>
+    </div>
+    <nav>
+        <div class="nav-label">Overview</div>
+        <div class="nav-item active"><i class="fa-solid fa-chart-line"></i> Dashboard</div>
+    </nav>
+    <div class="sidebar-footer">
+        <div class="agent-card">
+            <div class="agent-avatar">A</div>
+            <div>
+                <div class="agent-name">Administrator</div>
+                <div class="agent-status"><div class="pulse-dot"></div> System Online</div>
             </div>
         </div>
-    </main>
+    </div>
+</aside>
 
-    <script>
-        let allCalls = [];
+<main>
+    <div class="topbar">
+        <div class="topbar-title">Dashboard Overview</div>
+        <div class="topbar-right">
+            <div class="call-form">
+                <i class="fa-solid fa-phone" style="color:var(--muted2);font-size:12px;"></i>
+                <input type="tel" id="call-number-input" placeholder="+1 (555) 000-0000" onkeydown="if(event.key==='Enter') triggerCall()"/>
+                <button class="btn-call" id="call-btn" onclick="triggerCall()">
+                    <i class="fa-solid fa-phone-volume" id="call-btn-icon"></i>
+                    <span id="call-btn-text">Dial Now</span>
+                </button>
+            </div>
+            <div class="status-badge"><div class="pulse-dot"></div> Twilio Active</div>
+        </div>
+    </div>
 
-        async function loadCalls() {
-            try {
-                const response = await fetch('/api/calls');
-                allCalls = await response.json();
-                
-                const total = allCalls.length;
-                const completed = allCalls.filter(c => c.status === 'Completed').length;
-                const failed = total - completed;
-                const successRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-                
-                let totalDuration = 0;
-                allCalls.forEach(c => { totalDuration += (c.duration_seconds || 0); });
-                const avgDuration = total > 0 ? Math.round(totalDuration / total) : 0;
-                
-                document.getElementById('kpi-total').innerText = total;
-                document.getElementById('kpi-duration').innerText = avgDuration + 's';
-                document.getElementById('kpi-success').innerText = successRate + '%';
-                document.getElementById('kpi-failed').innerText = failed;
+    <div class="content">
+        <div class="kpi-row">
+            <div class="kpi-card blue">
+                <div class="kpi-icon"><i class="fa-solid fa-phone"></i></div>
+                <div><div class="kpi-label">Total Calls</div><div class="kpi-value" id="kpi-total">—</div></div>
+            </div>
+            <div class="kpi-card purple">
+                <div class="kpi-icon"><i class="fa-solid fa-stopwatch"></i></div>
+                <div><div class="kpi-label">Avg Duration</div><div class="kpi-value" id="kpi-duration">—</div></div>
+            </div>
+            <div class="kpi-card green">
+                <div class="kpi-icon"><i class="fa-solid fa-circle-check"></i></div>
+                <div><div class="kpi-label">Success Rate</div><div class="kpi-value" id="kpi-success">—</div></div>
+            </div>
+            <div class="kpi-card red">
+                <div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <div><div class="kpi-label">Failed</div><div class="kpi-value" id="kpi-failed">—</div></div>
+            </div>
+        </div>
 
-                const callList = document.getElementById('call-list');
-                if(total === 0) {
-                    callList.innerHTML = '<p class="text-slate-400 text-sm text-center mt-10">No calls logged yet.</p>';
-                    return;
-                }
+        <div class="panel-row">
+            <!-- Call List -->
+            <div class="panel call-list-panel">
+                <div class="panel-head">
+                    <div class="panel-head-title">
+                        <i class="fa-solid fa-list" style="color:var(--accent2);margin-right:8px;font-size:13px;"></i>Call Log
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <div class="panel-badge" id="call-count-badge">0 calls</div>
+                        <button class="btn-refresh" id="refresh-btn" onclick="refreshCalls()">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="call-list-body" id="call-list">
+                    <div class="empty-calls"><i class="fa-solid fa-phone-slash"></i>No calls logged yet</div>
+                </div>
+            </div>
 
-                callList.innerHTML = allCalls.map(call => {
-                    const isSuccess = call.status === 'Completed';
-                    const timeString = new Date(call.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                    const shortId = call.call_id.split('-')[1] + '-' + call.call_id.split('-')[2].substring(0,4);
-                    // Pass the recording_url (or null) to the transcript function
-                    const safeUrl = call.recording_url ? \`'\${call.recording_url}'\` : 'null';
-                    
-                    return `
-                    <div onclick="loadTranscript('${call.call_id}', '${timeString}', ${call.duration_seconds}, ${safeUrl})" 
-                         class="p-3 rounded-lg border border-transparent hover:border-slate-200 hover:bg-white hover:shadow-sm cursor-pointer transition flex items-center gap-3 group">
-                        <div class="w-10 h-10 rounded-full ${isSuccess ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'} flex items-center justify-center shrink-0">
-                            <i class="fa-solid ${isSuccess ? 'fa-phone' : 'fa-phone-slash'}"></i>
+            <!-- Transcript + Recording -->
+            <div class="panel transcript-panel">
+                <div class="transcript-head">
+                    <div class="transcript-head-info">
+                        <div class="transcript-head-title" id="transcript-title">
+                            <i class="fa-solid fa-comment-dots" style="color:var(--muted2);"></i>
+                            Select a Call Record
                         </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex justify-between items-center mb-0.5">
-                                <span class="font-semibold text-sm text-slate-800 truncate">${shortId}</span>
-                                <span class="text-xs font-medium text-slate-500">${timeString}</span>
+                        <div class="transcript-head-meta" id="transcript-meta">Click any call to view its conversation</div>
+                    </div>
+
+                    <!-- Audio player -->
+                    <div class="recording-wrap" id="recording-wrap">
+                        <div class="audio-player-custom">
+                            <button class="btn-play" id="btn-play" onclick="togglePlay()">
+                                <i class="fa-solid fa-play" id="play-icon"></i>
+                            </button>
+                            <div class="audio-progress-wrap">
+                                <div class="audio-label">RECORDING</div>
+                                <input type="range" class="audio-progress" id="audio-progress" value="0" min="0" max="100" step="0.1" oninput="seekAudio(this.value)">
                             </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-xs text-slate-500 truncate"><i class="fa-regular fa-clock mr-1"></i>${call.duration_seconds} sec</span>
-                                <span class="text-[10px] uppercase tracking-wide font-bold px-1.5 py-0.5 rounded ${isSuccess ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}">${call.status}</span>
-                            </div>
+                            <div class="audio-time" id="audio-time">0:00 / 0:00</div>
                         </div>
+                        <a class="btn-download" id="btn-download" href="#" download>
+                            <i class="fa-solid fa-download"></i> MP3
+                        </a>
                     </div>
-                `}).join('');
-            } catch (e) {
-                console.error("Failed to load calls", e);
-            }
+                </div>
+
+                <audio id="real-audio" preload="metadata"></audio>
+
+                <div class="transcript-body" id="transcript-box">
+                    <div class="transcript-empty">
+                        <i class="fa-regular fa-comment-dots"></i>
+                        <p>Select a call from the log to view the full transcript.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div id="toast"><i id="toast-icon"></i><span id="toast-msg"></span></div>
+
+<script>
+    let allCalls     = [];
+    let activeCallId = null;
+    const audioEl    = document.getElementById('real-audio');
+
+    // ── Audio player ─────────────────────────────────────
+    audioEl.addEventListener('timeupdate', () => {
+        if (!audioEl.duration) return;
+        document.getElementById('audio-progress').value = (audioEl.currentTime / audioEl.duration) * 100;
+        document.getElementById('audio-time').innerText = `${fmt(audioEl.currentTime)} / ${fmt(audioEl.duration)}`;
+    });
+    audioEl.addEventListener('ended',           () => { document.getElementById('play-icon').className = 'fa-solid fa-play'; });
+    audioEl.addEventListener('loadedmetadata',  () => { document.getElementById('audio-time').innerText = `0:00 / ${fmt(audioEl.duration)}`; });
+
+    function fmt(s) {
+        if (!s || isNaN(s)) return '0:00';
+        return `${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`;
+    }
+    function togglePlay() {
+        if (audioEl.paused) { audioEl.play(); document.getElementById('play-icon').className = 'fa-solid fa-pause'; }
+        else                { audioEl.pause(); document.getElementById('play-icon').className = 'fa-solid fa-play'; }
+    }
+    function seekAudio(v) { if (audioEl.duration) audioEl.currentTime = (v/100)*audioEl.duration; }
+
+    // ── KEY FIX: callId passed directly as parameter ──────
+    function loadRecording(callId, hasRecording) {
+        const wrap = document.getElementById('recording-wrap');
+        if (!hasRecording) { wrap.classList.remove('visible'); audioEl.src=''; return; }
+
+        const proxyUrl = `/api/calls/${callId}/recording`;
+        audioEl.src = proxyUrl;
+        audioEl.load();
+        document.getElementById('play-icon').className   = 'fa-solid fa-play';
+        document.getElementById('audio-progress').value  = 0;
+        document.getElementById('audio-time').innerText  = '0:00 / 0:00';
+        document.getElementById('btn-download').href     = proxyUrl;
+        document.getElementById('btn-download').download = `${callId}.mp3`;
+        wrap.classList.add('visible');
+    }
+
+    // ── Toast ─────────────────────────────────────────────
+    function showToast(msg, type='info', dur=3500) {
+        const t = document.getElementById('toast');
+        const icons = {success:'fa-circle-check', error:'fa-circle-xmark', info:'fa-circle-info'};
+        document.getElementById('toast-icon').className = `fa-solid ${icons[type]||icons.info}`;
+        document.getElementById('toast-msg').innerText  = msg;
+        t.className = `show ${type}`;
+        clearTimeout(t._t);
+        t._t = setTimeout(() => t.className='', dur);
+    }
+
+    // ── KPIs ──────────────────────────────────────────────
+    function renderKPIs() {
+        const total = allCalls.length;
+        const done  = allCalls.filter(c => c.status==='Completed').length;
+        let   dur   = 0; allCalls.forEach(c => dur += (c.duration_seconds||0));
+        animateVal('kpi-total',    0, total,                          600);
+        animateVal('kpi-duration', 0, total>0?Math.round(dur/total):0, 700, 's');
+        animateVal('kpi-success',  0, total>0?Math.round(done/total*100):0, 800, '%');
+        animateVal('kpi-failed',   0, total-done,                     500);
+    }
+    function animateVal(id, start, end, dur, sfx='') {
+        const el=document.getElementById(id), range=end-start, t0=performance.now();
+        (function step(now){
+            const p=Math.min((now-t0)/dur,1), e=1-Math.pow(1-p,3);
+            el.innerText=Math.round(start+range*e)+sfx;
+            if(p<1) requestAnimationFrame(step);
+        })(performance.now());
+    }
+
+    // ── Call list ─────────────────────────────────────────
+    async function loadCalls() {
+        try {
+            allCalls = await (await fetch('/api/calls')).json();
+            renderKPIs();
+            renderCalls();
+        } catch(e) { showToast('Failed to load calls','error'); }
+    }
+    async function refreshCalls() {
+        const btn=document.getElementById('refresh-btn');
+        btn.classList.add('spinning');
+        await loadCalls();
+        setTimeout(()=>btn.classList.remove('spinning'), 600);
+        showToast('Refreshed','info',1800);
+    }
+
+    function renderCalls() {
+        const list  = document.getElementById('call-list');
+        const badge = document.getElementById('call-count-badge');
+        badge.innerText = `${allCalls.length} call${allCalls.length!==1?'s':''}`;
+
+        if (!allCalls.length) {
+            list.innerHTML = '<div class="empty-calls"><i class="fa-solid fa-phone-slash"></i>No calls logged yet</div>';
+            return;
         }
 
-        async function loadTranscript(callId, timeString, duration, recordingUrl) {
-            document.getElementById('transcript-title').innerHTML = `<i class="fa-solid fa-file-waveform text-brand-500 mr-2"></i> Transcript: ${callId.split('-')[1]}`;
-            document.getElementById('transcript-meta').innerText = `Logged at ${timeString} • Duration: ${duration}s`;
-            
-            // Handle the audio player display
-            const audioContainer = document.getElementById('audio-container');
-            const audioPlayer = document.getElementById('call-audio-player');
-            
-            if (recordingUrl) {
-                // If Twilio gave us an MP3, show the player and load the URL
-                audioPlayer.src = recordingUrl;
-                audioContainer.classList.remove('hidden');
-            } else {
-                // If it was a failed call or a seeded test call without audio, hide the player
-                audioPlayer.pause();
-                audioPlayer.src = "";
-                audioContainer.classList.add('hidden');
+        list.innerHTML = allCalls.map(call => {
+            const ok      = call.status==='Completed';
+            const timeStr = new Date(call.start_time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+            const shortId = call.call_id.split('-').slice(1,3).join('-');
+            const active  = call.call_id===activeCallId ? 'active' : '';
+            const hasRec  = call.recording_url ? 'true' : 'false';
+
+            return `
+            <div class="call-item ${active}"
+                 onclick="loadTranscript('${call.call_id}','${timeStr}',${call.duration_seconds},${hasRec},this)">
+                <div class="call-avatar ${ok?'ok':'bad'}">
+                    <i class="fa-solid ${ok?'fa-phone':'fa-phone-slash'}"></i>
+                </div>
+                <div class="call-info">
+                    <div class="call-id">${shortId}</div>
+                    <div class="call-meta">
+                        <span class="call-time"><i class="fa-regular fa-clock" style="margin-right:3px;"></i>${timeStr}</span>
+                        <span class="call-dur">· ${call.duration_seconds}s</span>
+                    </div>
+                </div>
+                <div class="status-pill ${ok?'ok':'bad'}">${call.status}</div>
+            </div>`;
+        }).join('');
+    }
+
+    // ── Transcript ────────────────────────────────────────
+    async function loadTranscript(callId, timeStr, duration, hasRecording, el) {
+        document.querySelectorAll('.call-item').forEach(i => i.classList.remove('active'));
+        if (el) el.classList.add('active');
+        activeCallId = callId;
+
+        const shortId = callId.split('-').slice(1,3).join('-');
+        document.getElementById('transcript-title').innerHTML =
+            `<i class="fa-solid fa-file-waveform" style="color:var(--accent2);"></i> ${shortId}`;
+        document.getElementById('transcript-meta').innerText =
+            `Called at ${timeStr}  ·  Duration: ${duration}s`;
+
+        // Load recording — pass callId directly (fixes the scope bug)
+        loadRecording(callId, hasRecording === true || hasRecording === 'true');
+
+        const box = document.getElementById('transcript-box');
+        box.innerHTML = `<div class="transcript-empty"><i class="fa-solid fa-circle-notch fa-spin" style="font-size:28px;color:var(--accent2);"></i><p>Loading transcript…</p></div>`;
+
+        try {
+            const data = await (await fetch(`/api/calls/${callId}/transcript`)).json();
+
+            if (!data.length) {
+                box.innerHTML = `<div class="transcript-empty"><i class="fa-solid fa-ghost"></i><p>No transcript data found for this call.</p></div>`;
+                return;
             }
 
-            const box = document.getElementById('transcript-box');
-            box.innerHTML = '<div class="h-full flex items-center justify-center"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-brand-500"></i></div>';
+            box.innerHTML = '<div style="padding-bottom:8px;">' + data.map((t,i) => {
+                const isAgent = t.speaker==='Agent';
+                const cls     = isAgent ? 'agent' : 'customer';
+                const time    = new Date(t.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+                const label   = isAgent ? `AI Agent · ${time}` : `Customer · ${time}`;
+                return `
+                <div class="bubble-row ${cls}" style="animation-delay:${i*0.04}s">
+                    ${isAgent ? `<div class="bubble-avatar"><i class="fa-solid fa-robot"></i></div>` : ''}
+                    <div class="bubble-content">
+                        <div class="bubble-label">${label}</div>
+                        <div class="bubble">${t.message}</div>
+                    </div>
+                    ${!isAgent ? `<div class="bubble-avatar"><i class="fa-solid fa-user"></i></div>` : ''}
+                </div>`;
+            }).join('') + '</div>';
 
-            try {
-                const response = await fetch(`/api/calls/${callId}/transcript`);
-                const transcript = await response.json();
+            setTimeout(() => box.scrollTop = box.scrollHeight, 50);
 
-                if(transcript.length === 0) {
-                    box.innerHTML = '<div class="h-full flex items-center justify-center text-slate-400">No transcript data found.</div>';
-                    return;
-                }
+        } catch(e) {
+            box.innerHTML = `<div class="transcript-empty" style="color:var(--red);"><i class="fa-solid fa-circle-xmark"></i><p>Error loading transcript.</p></div>`;
+        }
+    }
 
-                box.innerHTML = '<div class="space-y-6 pb-4">' + transcript.map(t => {
-                    const isAgent = t.speaker === 'Agent';
-                    const time = new Date(t.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
-                    
-                    if (isAgent) {
-                        return `
-                        <div class="flex items-end gap-2 max-w-[85%]">
-                            <div class="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center shrink-0 text-white shadow-sm">
-                                <i class="fa-solid fa-robot text-xs"></i>
-                            </div>
-                            <div class="flex flex-col gap-1">
-                                <span class="text-[10px] text-slate-400 font-medium ml-1">AI Agent • ${time}</span>
-                                <div class="bg-white border border-slate-200 text-slate-800 px-4 py-3 rounded-2xl rounded-bl-none shadow-sm text-sm leading-relaxed">
-                                    ${t.message}
-                                </div>
-                            </div>
-                        </div>`;
-                    } else {
-                        return `
-                        <div class="flex items-end gap-2 max-w-[85%] ml-auto justify-end">
-                            <div class="flex flex-col gap-1 items-end">
-                                <span class="text-[10px] text-slate-400 font-medium mr-1">Customer • ${time}</span>
-                                <div class="bg-brand-600 text-white px-4 py-3 rounded-2xl rounded-br-none shadow-sm text-sm leading-relaxed">
-                                    ${t.message}
-                                </div>
-                            </div>
-                            <div class="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center shrink-0 text-slate-600 shadow-sm">
-                                <i class="fa-solid fa-user text-xs"></i>
-                            </div>
-                        </div>`;
-                    }
-                }).join('') + '</div>';
-                
-                box.scrollTop = box.scrollHeight;
-            } catch (e) {
-                box.innerHTML = '<div class="text-red-500 text-center mt-10">Error loading transcript.</div>';
-            }
+    // ── Trigger call ──────────────────────────────────────
+    async function triggerCall() {
+        const input   = document.getElementById('call-number-input');
+        const btn     = document.getElementById('call-btn');
+        const btnText = document.getElementById('call-btn-text');
+        const btnIcon = document.getElementById('call-btn-icon');
+        const number  = input.value.trim();
+
+        if (!number) {
+            input.style.outline = '2px solid var(--red)';
+            setTimeout(() => input.style.outline='', 2000);
+            showToast('Please enter a phone number','error');
+            return;
         }
 
-        loadCalls();
-    </script>
+        btn.disabled=true; btn.classList.add('dialing');
+        btnText.innerText='Dialing…'; btnIcon.className='fa-solid fa-spinner fa-spin';
+
+        try {
+            const result = await (await fetch('/api/trigger-call',{
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({number})
+            })).json();
+
+            if (result.error) {
+                btn.classList.remove('dialing'); btn.classList.add('error');
+                btnText.innerText='Failed'; btnIcon.className='fa-solid fa-xmark';
+                showToast(`Call failed: ${result.error}`,'error',6000);
+                setTimeout(resetCallBtn, 3000); return;
+            }
+
+            btn.classList.remove('dialing'); btn.classList.add('success');
+            btnText.innerText='Dialing!'; btnIcon.className='fa-solid fa-check';
+            input.value='';
+            showToast(`📞 Dialing ${number}`,'success',4000);
+            setTimeout(()=>{ loadCalls(); resetCallBtn(); }, 6000);
+
+        } catch(e) {
+            btn.classList.remove('dialing'); btn.classList.add('error');
+            btnText.innerText='Error'; btnIcon.className='fa-solid fa-xmark';
+            showToast('Network error','error');
+            setTimeout(resetCallBtn, 3000);
+        }
+    }
+
+    function resetCallBtn() {
+        const btn=document.getElementById('call-btn');
+        btn.disabled=false; btn.className='btn-call';
+        document.getElementById('call-btn-text').innerText='Dial Now';
+        document.getElementById('call-btn-icon').className='fa-solid fa-phone-volume';
+    }
+
+    loadCalls();
+    setInterval(loadCalls, 30000);
+</script>
 </body>
 </html>

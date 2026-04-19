@@ -2,18 +2,21 @@ import os
 import chromadb
 import requests
 from bs4 import BeautifulSoup
-from openai import OpenAI
 from dotenv import load_dotenv
+from langchain_google_vertexai import VertexAIEmbeddings
 
 load_dotenv()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=60.0)
+embeddings_model = VertexAIEmbeddings(
+    model_name="text-embedding-004",
+    project=os.getenv("VERTEX_PROJECT_ID"),
+    location="us-east1",
+)
 
 # Initialize local ChromaDB
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="parametric_knowledge")
 
-# Your sitemap URLs
 WEBSITE_URLS = [
     "https://www.parametricestimates.com",
     "https://www.parametricestimates.com/about-us",
@@ -36,55 +39,39 @@ WEBSITE_URLS = [
 ]
 
 def scrape_text_from_url(url: str) -> str:
-    """Fetches a web page and extracts clean text."""
     try:
-        # Pretend to be a normal web browser so the site doesn't block us
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
         response = requests.get(url, headers=headers, timeout=10)
-        
         soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # Strip out the code we don't need to read (headers, footers, scripts)
         for script in soup(["script", "style", "header", "footer", "nav"]):
             script.extract()
-            
-        # Get the visible text
-        text = soup.get_text(separator=' ', strip=True)
-        return text
+        return soup.get_text(separator=' ', strip=True)
     except Exception as e:
         print(f"Error scraping {url}: {e}")
         return ""
 
 def init_knowledge_base():
-    """Scrapes the website, chunks the text, and saves it to ChromaDB."""
-    # Check if we already have data to avoid scraping every single time you restart the server
     if collection.count() > 0:
         print(f"📚 Knowledge Base already loaded with {collection.count()} chunks.")
         return
 
     print("🌐 Scraping Parametric Estimates website...")
     all_chunks = []
-    
+
     for url in WEBSITE_URLS:
         print(f"Reading: {url}")
         text = scrape_text_from_url(url)
         if not text:
             continue
-            
-        # Chop the webpage into chunks of ~100 words so the LLM can digest them easily
+
         words = text.split()
-        chunk_size = 100 
-        
+        chunk_size = 100
         for i in range(0, len(words), chunk_size):
-            chunk_words = words[i:i + chunk_size]
-            chunk_text = " ".join(chunk_words)
-            
-            # Only save chunks that actually have a decent amount of text
+            chunk_text = " ".join(words[i:i + chunk_size])
             if len(chunk_text.strip()) > 30:
-                # Create a unique ID for this chunk based on the URL
                 safe_url = url.split('.com')[-1].replace('/', '_')
-                if not safe_url: safe_url = "_home"
-                
+                if not safe_url:
+                    safe_url = "_home"
                 all_chunks.append({
                     "text": chunk_text,
                     "id": f"doc{safe_url}_chunk_{i}"
@@ -94,55 +81,48 @@ def init_knowledge_base():
         print("Failed to extract any text from the website.")
         return
 
-    print(f"🧠 Generating vector embeddings for {len(all_chunks)} chunks...")
-    
-    # Process the embeddings in batches of 100 to respect OpenAI's rate limits
+    print(f"🧠 Generating Vertex AI embeddings for {len(all_chunks)} chunks...")
+
     texts = [c["text"] for c in all_chunks]
     ids = [c["id"] for c in all_chunks]
-    batch_size = 20 
-    
+    batch_size = 20
+
     for i in range(0, len(texts), batch_size):
-        batch_texts = texts[i:i+batch_size]
-        batch_ids = ids[i:i+batch_size]
-        
-        # Send text to OpenAI to get the mathematical meaning (embedding)
-        response = client.embeddings.create(
-            input=batch_texts,
-            model="text-embedding-3-small"
-        )
-        embeddings = [data.embedding for data in response.data]
-        
-        # Save to your local ChromaDB
+        batch_texts = texts[i:i + batch_size]
+        batch_ids = ids[i:i + batch_size]
+
+        # LangChain VertexAIEmbeddings
+        batch_embeddings = embeddings_model.embed_documents(batch_texts)
+
         collection.upsert(
             documents=batch_texts,
-            embeddings=embeddings,
-            ids=batch_ids
+            embeddings=batch_embeddings,
+            ids=batch_ids,
         )
-        
-    print(f"✅ Successfully loaded {len(all_chunks)} website chunks into the brain!")
+
+    print(f"✅ Successfully loaded {len(all_chunks)} website chunks!")
 
 def query_knowledge_base(user_question: str, top_k: int = 2) -> str:
-    """Searches the database for the most relevant facts to the user's question."""
     try:
-        response = client.embeddings.create(
-            input=user_question,
-            model="text-embedding-3-small"
-        )
-        query_embedding = response.data[0].embedding
-        
+        query_embedding = embeddings_model.embed_query(user_question)
+
+        # Guard: check stored dimension matches query dimension
+        stored_count = collection.count()
+        if stored_count == 0:
+            return ""
+
         results = collection.query(
             query_embeddings=[query_embedding],
-            n_results=top_k
+            n_results=min(top_k, stored_count),
         )
-        
+
         retrieved_facts = results['documents'][0]
         if not retrieved_facts:
             return ""
-            
         return " ".join(retrieved_facts)
+
     except Exception as e:
         print(f"RAG Error: {e}")
-        return ""
+        return ""   # ← always return empty string, never crash
 
-# Fire up the scraper when the server starts
 init_knowledge_base()

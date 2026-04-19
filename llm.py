@@ -1,17 +1,21 @@
 import os
-from openai import AsyncOpenAI
+import asyncio
 from dotenv import load_dotenv
+from langchain_google_vertexai import ChatVertexAI
 from rag import query_knowledge_base
 
 load_dotenv()
 
-client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+llm = ChatVertexAI(
+    model="gemini-2.5-flash",
+    location="us-east1",
+    project=os.getenv("VERTEX_PROJECT_ID"),
+    temperature=0.7,
+    max_output_tokens=300,
+)
 
-# The Master Call Flow and Persona
-# The Master Call Flow and Persona
-# The Master Call Flow and Persona
-system_prompt = """You are Sam Cooper, an outbound sales agent for Parametric Estimates. 
-You are calling contractors to offer construction cost estimation services. 
+system_prompt = """You are Sam Cooper, an outbound sales agent for Parametric Estimates.
+You are calling contractors to offer construction cost estimation services.
 Speak in a friendly, conversational, and professional tone. Keep responses to 1-2 short sentences maximum.
 
 *** THE GOLDEN RULES (CRITICAL) ***
@@ -25,11 +29,11 @@ Look at the chat history to determine your current state. Always advance forward
 
 STATE 1: THE HOOK
 - Greeting: "Hey, this is Sam Cooper with Parametric Estimates. How are you doing today?"
-- Pitch: "I’m calling from an estimation firm. We provide cost estimation services for all types of construction jobs. Do you have any active projects you need an estimate for?"
+- Pitch: "I'm calling from an estimation firm. We provide cost estimation services for all types of construction jobs. Do you have any active projects you need an estimate for?"
 
 STATE 2: THE BRANCH (Only execute ONCE)
 - If NO: "Got it. Out of curiosity, do you guys use specific software for that, or local vendors?"
-- If YES: "That’s great. Is it a commercial, residential, or industrial project? And what specific scope are you covering?" (If they already told you the scope, skip asking and move to State 3).
+- If YES: "That's great. Is it a commercial, residential, or industrial project? And what specific scope are you covering?" (If they already told you the scope, skip asking and move to State 3).
 
 STATE 3: SCOPE & PLANS (The Close - CRITICAL STEP)
 - If NO project: "If you ever want to compare numbers, we are highly detailed. Can I grab your email to send over our portfolio for future reference?"
@@ -46,40 +50,43 @@ FAQ & KNOWLEDGE:
 - Where are you based?: "We provide services nationwide across all 50 states."
 """
 
-conversation_history = [
-    {"role": "system", "content": system_prompt}
-]
+# In-memory conversation history (list of LangChain message objects)
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+
+conversation_history = [SystemMessage(content=system_prompt)]
+
 
 async def generate_response(user_text: str) -> str:
     global conversation_history
-    
+
     try:
         # 1. Search the website data (RAG)
         retrieved_facts = query_knowledge_base(user_text)
         if retrieved_facts:
             print(f"📚 RAG Context Found: {retrieved_facts[:50]}...")
-        
+
         # 2. Package the prompt
-        rag_enhanced_prompt = f"Context from company website (Use only if relevant): {retrieved_facts}\n\nCustomer says: {user_text}"
-        
-        # 3. Add to memory
-        conversation_history.append({"role": "user", "content": rag_enhanced_prompt})
-        
-        # 4. Generate reply
-        response = await client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=conversation_history,
-            max_tokens=150,
-            temperature=0.7
+        rag_enhanced_prompt = (
+            f"Context from company website (Use only if relevant): {retrieved_facts}\n\n"
+            f"Customer says: {user_text}"
         )
-        
-        agent_reply = response.choices[0].message.content
-        conversation_history.append({"role": "assistant", "content": agent_reply})
+
+        # 3. Add to memory
+        conversation_history.append(HumanMessage(content=rag_enhanced_prompt))
+
+        # 4. Generate reply — run sync LangChain call in thread pool
+        response = await asyncio.get_event_loop().run_in_executor(
+            None, llm.invoke, conversation_history
+        )
+
+        agent_reply = response.content
+        conversation_history.append(AIMessage(content=agent_reply))
         return agent_reply
-        
+
     except Exception as e:
         return f"Error generating response: {str(e)}"
 
+
 def reset_memory():
     global conversation_history
-    conversation_history = [conversation_history[0]]
+    conversation_history = [SystemMessage(content=system_prompt)]

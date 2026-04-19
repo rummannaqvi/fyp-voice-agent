@@ -48,7 +48,9 @@ mypy_extensions==1.1.0
 numpy==2.4.3
 oauthlib==3.3.1
 onnxruntime==1.24.4
-openai==1.10.0
+langchain-google-vertexai>=2.0.0
+langchain-core>=0.2.0
+google-cloud-aiplatform>=1.40.0
 opentelemetry-api==1.40.0
 opentelemetry-exporter-otlp-proto-common==1.40.0
 opentelemetry-exporter-otlp-proto-grpc==1.40.0
@@ -72,6 +74,7 @@ PyPika==0.51.1
 pyproject_hooks==1.2.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
+python-multipart>=0.0.9
 PyYAML==6.0.3
 referencing==0.37.0
 regex==2026.2.28
