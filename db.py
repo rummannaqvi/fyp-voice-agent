@@ -58,6 +58,7 @@ def init_db():
             # Add columns if upgrading from older schema
             cur.execute("ALTER TABLE call_logs ADD COLUMN IF NOT EXISTS call_sid      VARCHAR(100);")
             cur.execute("ALTER TABLE call_logs ADD COLUMN IF NOT EXISTS recording_url VARCHAR(255);")
+            cur.execute("ALTER TABLE call_logs ADD COLUMN IF NOT EXISTS customer_number VARCHAR(30);")
 
         conn.commit()
         print("✅ PostgreSQL Database initialized and tables verified.")
@@ -92,9 +93,9 @@ def save_call_data(stream_sid: str, call_sid: str, start_time: datetime, convers
             # 1. Save Call Metadata
             cur.execute("""
                 INSERT INTO call_logs
-                    (call_id, stream_sid, call_sid, start_time, end_time, duration_seconds, status)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (call_id, stream_sid, call_sid, start_time, end_time, duration, "Completed"))
+                    (call_id, stream_sid, call_sid, start_time, end_time, duration_seconds, status, customer_number)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (call_id, stream_sid, call_sid, start_time, end_time, duration, "Completed", customer_number))
 
             # 2. Save the Transcript
             # Skip the first message — it's always the SystemMessage (system prompt)

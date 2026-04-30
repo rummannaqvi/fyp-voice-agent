@@ -65,10 +65,16 @@ async def incoming_call(request: Request):
     back to our WebSocket. The AI speaks the opening line once the
     WebSocket is established — no response.say() needed here.
     """
+    form_data = await request.form()
+    direction = form_data.get("Direction", "")
+    
+    # If outbound, the customer is 'To'. If inbound, they are 'From'.
+    customer_number = form_data.get("From") if direction == "inbound" else form_data.get("To", "Unknown")
     response = VoiceResponse()
     connect  = Connect()
     host     = request.headers.get("host")
-    connect.stream(url=f"wss://{host}/media-stream")
+    stream = connect.stream(url=f"wss://{host}/media-stream")
+    stream.parameter(name="customer_number", value=customer_number)
     response.append(connect)
     return HTMLResponse(content=str(response), media_type="application/xml")
 
@@ -206,6 +212,7 @@ async def media_stream(websocket: WebSocket):
 
     stream_sid      = None
     call_sid        = None
+    customer_number = "Unknown"  # Will be overwritten when stream starts
     ai_is_speaking  = False   # Is Twilio currently playing our audio?
     is_processing   = False   # Is the LLM currently thinking?
     websocket_open  = True    # Guards against post-close sends
@@ -299,7 +306,12 @@ async def media_stream(websocket: WebSocket):
             if data['event'] == 'start':
                 stream_sid = data['start']['streamSid']
                 call_sid   = data['start']['callSid']
-                print(f"🔗 Stream ready: {stream_sid}")
+                
+                # Catch the customer number passed from the webhook
+                custom_params = data['start'].get('customParameters', {})
+                customer_number = custom_params.get('customer_number', 'Unknown')
+                
+                print(f"🔗 Stream ready: {stream_sid} for {customer_number}")
 
                 # Add opening line to history BEFORE speaking so the LLM
                 # knows STATE 1 is already done and won't repeat it
@@ -335,7 +347,8 @@ async def media_stream(websocket: WebSocket):
 
         print("💾 Saving call to database...")
         if stream_sid:
-            save_call_data(stream_sid, call_sid, call_start_time, conversation_history)
+            # Pass the caught customer_number directly to the DB save function
+            save_call_data(stream_sid, call_sid, call_start_time, conversation_history, customer_number)
 
         try:
             await dg_connection.finish()
