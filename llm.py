@@ -89,4 +89,7 @@ async def generate_response(user_text: str) -> str:
 
 def reset_memory():
     global conversation_history
-    conversation_history = [SystemMessage(content=system_prompt)]
+    # Clear the existing list instead of overwriting it
+    conversation_history.clear()
+    # Re-insert the system prompt
+    conversation_history.append(SystemMessage(content=system_prompt))
