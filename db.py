@@ -56,7 +56,7 @@ def init_db():
             """)
 
             # Add columns if upgrading from older schema
-            cur.execute("ALTER TABLE call_logs ADD COLUMN IF NOT EXISTS call_sid      VARCHAR(100);")
+            cur.execute("ALTER TABLE call_logs ADD COLUMN IF NOT EXISTS call_sid       VARCHAR(100);")
             cur.execute("ALTER TABLE call_logs ADD COLUMN IF NOT EXISTS recording_url VARCHAR(255);")
             cur.execute("ALTER TABLE call_logs ADD COLUMN IF NOT EXISTS customer_number VARCHAR(30);")
 
@@ -75,10 +75,9 @@ def generate_call_id() -> str:
     return f"CALL-{date_str}-{random_str}"
 
 
-def save_call_data(stream_sid: str, call_sid: str, start_time: datetime, conversation_history: list):
+def save_call_data(stream_sid: str, call_sid: str, start_time: datetime, conversation_history: list, customer_number: str = "Unknown"):
     """
     Saves call metadata and the full transcript to Postgres when the call ends.
-    Works with LangChain message objects (AIMessage, HumanMessage, SystemMessage).
     """
     conn = get_db_connection()
     if not conn:
@@ -98,26 +97,19 @@ def save_call_data(stream_sid: str, call_sid: str, start_time: datetime, convers
             """, (call_id, stream_sid, call_sid, start_time, end_time, duration, "Completed", customer_number))
 
             # 2. Save the Transcript
-            # Skip the first message — it's always the SystemMessage (system prompt)
             for msg in conversation_history[1:]:
-
-                # Skip any stray system messages
                 if isinstance(msg, SystemMessage):
                     continue
 
                 if isinstance(msg, AIMessage):
                     speaker = "Agent"
                     text    = msg.content
-
                 elif isinstance(msg, HumanMessage):
                     speaker = "Customer"
                     text    = msg.content
-                    # Strip the RAG wrapper so we only log the raw customer words
                     if "Customer says:" in text:
                         text = text.split("Customer says:")[-1].strip()
-
                 else:
-                    # Unknown message type — skip silently
                     continue
 
                 cur.execute("""
@@ -132,7 +124,6 @@ def save_call_data(stream_sid: str, call_sid: str, start_time: datetime, convers
         print(f"Error saving call data: {e}")
     finally:
         conn.close()
-
 
 def get_all_calls():
     """Fetches all call logs from the database, newest first."""
