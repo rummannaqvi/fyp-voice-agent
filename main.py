@@ -58,7 +58,7 @@ async def test_chat(message: str):
 #  TWILIO WEBHOOK — called when Twilio connects
 # ─────────────────────────────────────────
 
-@app.post("/incoming-call")
+@app.post("/incoming-call.xml")
 async def incoming_call(request: Request):
     """
     Twilio calls this URL first. We return TwiML that opens a media stream
@@ -144,7 +144,7 @@ async def trigger_call(request: Request):
         call = twilio_client.calls.create(
             to=number,
             from_=os.getenv("TWILIO_PHONE_NUMBER"),
-            url=f"{ngrok_url}/incoming-call",
+            url=f"{ngrok_url}/incoming-call.xml",
             method="POST",
             record=True,
             recording_status_callback=f"{ngrok_url}/recording-webhook",

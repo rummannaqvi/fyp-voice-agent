@@ -12,7 +12,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5433:5432"
+    networks:
+      - voice_net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U voiceagent"]
       interval: 5s
@@ -28,6 +30,8 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
+    networks:
+      - voice_net
     volumes:
       # Persist ChromaDB between restarts so you don't re-scrape every time
       - chroma_data:/app/chroma_db
@@ -57,3 +61,6 @@ services:
 volumes:
   postgres_data:
   chroma_data:
+networks:
+  voice_net:
+    driver: bridge
